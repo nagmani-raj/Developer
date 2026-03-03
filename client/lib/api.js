@@ -1,23 +1,78 @@
 const DEFAULT_REMOTE_API_BASE = "https://developer-phcu.onrender.com";
+let activeApiBaseUrl = null;
+const warnedScopes = new Set();
 
-function resolveApiBaseUrl() {
-  const configured = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (configured && String(configured).trim()) {
-    return String(configured).trim();
+function getBrowserHostCandidates() {
+  if (typeof window === "undefined") return [];
+
+  const host = window.location.hostname;
+  const protocol = window.location.protocol;
+  const isLocalHost = host === "localhost" || host === "127.0.0.1";
+  const isLanIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+  const candidates = [];
+
+  if (isLocalHost || isLanIp) {
+    candidates.push(`http://${host}:5000`);
+    candidates.push(`${protocol}//${host}:5000`);
   }
 
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname;
-    const protocol = window.location.protocol;
-    if (host === "localhost" || host === "127.0.0.1") {
-      return `${protocol}//${host}:5000`;
-    }
-  }
-
-  return DEFAULT_REMOTE_API_BASE;
+  return candidates;
 }
 
-const API_BASE_URL = resolveApiBaseUrl();
+function getApiBaseCandidates() {
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const list = [];
+
+  if (activeApiBaseUrl) {
+    list.push(activeApiBaseUrl);
+  }
+
+  if (configured && String(configured).trim()) {
+    list.push(String(configured).trim());
+  }
+
+  getBrowserHostCandidates().forEach((candidate) => list.push(candidate));
+  list.push(DEFAULT_REMOTE_API_BASE);
+
+  const deduped = [];
+  const seen = new Set();
+  list.forEach((url) => {
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    deduped.push(url);
+  });
+
+  return deduped;
+}
+
+function isNetworkLikeError(error) {
+  if (!error) return false;
+  const message = String(error.message || "").toLowerCase();
+  return (
+    message.includes("failed to fetch") ||
+    message.includes("networkerror") ||
+    message.includes("load failed") ||
+    message.includes("network request failed") ||
+    message.includes("not allowed by cors")
+  );
+}
+
+function logApiError(scope, error) {
+  if (isAbortLikeError(error)) {
+    console.warn(`${scope}: request timeout`);
+    return;
+  }
+
+  if (isNetworkLikeError(error)) {
+    if (!warnedScopes.has(scope)) {
+      warnedScopes.add(scope);
+      console.warn(`${scope}: backend unreachable or blocked (network/CORS)`);
+    }
+    return;
+  }
+
+  console.error(`${scope}:`, error);
+}
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -35,46 +90,43 @@ function isAbortLikeError(error) {
   );
 }
 
-function logApiError(scope, error) {
-  if (isAbortLikeError(error)) {
-    console.warn(`${scope}: request timeout`);
-    return;
-  }
-  console.error(`${scope}:`, error);
-}
-
 async function fetchApi(path, { retries = 2, timeoutMs = 90000 } = {}) {
   let lastError = null;
+  const baseUrls = getApiBaseCandidates();
 
   for (let attempt = 1; attempt <= retries; attempt++) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => {
-      controller.abort(new Error(`Request timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
+    for (const baseUrl of baseUrls) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => {
+        controller.abort(new Error(`Request timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
 
-    try {
-      const response = await fetch(`${API_BASE_URL}${path}`, {
-        cache: "no-store",
-        signal: controller.signal,
-      });
+      try {
+        const response = await fetch(`${baseUrl}${path}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${path} (${response.status})`);
+        if (!response.ok) {
+          throw new Error(`API request failed: ${path} (${response.status})`);
+        }
+
+        activeApiBaseUrl = baseUrl;
+        const payload = await response.json();
+        if (payload && typeof payload === "object" && "data" in payload) {
+          return payload.data;
+        }
+
+        return payload;
+      } catch (error) {
+        lastError = error;
+      } finally {
+        clearTimeout(timeout);
       }
+    }
 
-      const payload = await response.json();
-      if (payload && typeof payload === "object" && "data" in payload) {
-        return payload.data;
-      }
-
-      return payload;
-    } catch (error) {
-      lastError = error;
-      if (attempt < retries) {
-        await wait(500 * attempt);
-      }
-    } finally {
-      clearTimeout(timeout);
+    if (attempt < retries) {
+      await wait(500 * attempt);
     }
   }
 

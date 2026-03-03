@@ -35,6 +35,27 @@ export default function Navbar() {
             </Link>
           </motion.div>
 
+          <div className="hidden items-center gap-8 sm:flex">
+            {navItems.map((item, index) => (
+              <motion.div
+                key={item.name}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Link
+                  href={item.href}
+                  className="group relative rounded-md px-4 py-2 text-lg font-semibold text-gray-300 transition-colors hover:text-white"
+                >
+                  {item.name}
+                  <span className="absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r from-blue-400 to-purple-400 transition-all duration-300 group-hover:w-full" />
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+
           <button
             type="button"
             onClick={() => setIsMenuOpen((prev) => !prev)}
@@ -51,45 +72,25 @@ export default function Navbar() {
           </button>
         </div>
 
-        <div className="mt-3 hidden items-center gap-4 sm:mt-0 sm:flex md:gap-6">
-          {navItems.map((item, index) => (
-            <motion.div
-              key={item.name}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <Link
-                href={item.href}
-                className="group relative block rounded-md px-3 py-1.5 text-sm font-semibold text-gray-300 transition-colors hover:text-white sm:px-4 sm:py-2 sm:text-base"
-              >
-                {item.name}
-                <span className="absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r from-blue-400 to-purple-400 transition-all duration-300 group-hover:w-full" />
-              </Link>
-            </motion.div>
-          ))}
-        </div>
-
         {isMenuOpen ? (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
-            className="mt-3 grid gap-1 rounded-lg border border-gray-800 bg-gray-900/70 p-2 sm:hidden"
-          >
-            {navItems.map((item) => (
-              <Link
-                key={`mobile-${item.name}`}
-                href={item.href}
-                onClick={() => setIsMenuOpen(false)}
-                className="rounded-md px-3 py-2 text-sm font-semibold text-gray-200 transition-colors hover:bg-gray-800 hover:text-white"
+          <div className="mt-3 grid gap-1 rounded-lg border border-gray-800 bg-gray-900/70 p-2 sm:hidden">
+            {navItems.map((item, index) => (
+              <motion.div
+                key={item.name}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
               >
-                {item.name}
-              </Link>
+                <Link
+                  href={item.href}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="block rounded-md px-3 py-2 text-sm font-semibold text-gray-200 transition-colors hover:bg-gray-800 hover:text-white"
+                >
+                  {item.name}
+                </Link>
+              </motion.div>
             ))}
-          </motion.div>
+          </div>
         ) : null}
       </div>
     </motion.nav>
