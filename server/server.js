@@ -12,7 +12,7 @@ const algorithmRoutes = require("./routes/algorithms");
 const app = express();
 
 // Middleware - flexible CORS for local development
-const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
+const corsOrigin = process.env.CORS_ORIGIN || "https://developer-analyzer.vercel.app";
 const allowedOrigins = corsOrigin.split(",").map((s) => s.trim()).filter(Boolean);
 
 app.use(

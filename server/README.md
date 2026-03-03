@@ -33,7 +33,7 @@ npm install
 ```bash
 PORT=5000
 NODE_ENV=development
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=https://developer-analyzer.vercel.app
 ```
 
 ## 🏃 Running the Server
