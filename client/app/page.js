@@ -29,80 +29,90 @@ export default function Home() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="flex flex-col items-center justify-center min-h-[80vh] text-center pb-[29px]"
+      className="flex min-h-[80vh] flex-col items-center justify-center pb-[29px] text-center"
     >
-      {/* Title */}
       <motion.h1
         variants={itemVariants}
-        className="text-6xl md:text-7xl font-bold mb-6 max-w-4xl leading-tight"
+        className="mb-6 max-w-4xl text-5xl font-bold leading-tight sm:text-6xl md:text-7xl"
       >
-        <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">
+        <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
           Unified Coding Profile
         </span>
         <br />
         <span className="text-white">Analyzer</span>
         <br />
-        <span className="text-5xl">🚀</span>
+        <span className="text-4xl sm:text-5xl">{"\uD83D\uDE80"}</span>
       </motion.h1>
 
-      {/* Description */}
       <motion.p
         variants={itemVariants}
-        className="text-xl text-gray-300 max-w-3xl mb-8 leading-relaxed"
+        className="mb-8 max-w-3xl px-1 text-lg leading-relaxed text-gray-300 sm:text-xl"
       >
-        Connect all your coding platforms like <span className="text-orange-400 font-semibold">LeetCode</span>, 
-        <span className="text-green-400 font-semibold"> GeeksforGeeks</span>, 
-        <span className="text-blue-400 font-semibold"> Codeforces</span> in one place. 
+        Connect all your coding platforms like <span className="font-semibold text-orange-400">LeetCode</span>,
+        <span className="font-semibold text-green-400"> GeeksforGeeks</span>,
+        <span className="font-semibold text-blue-400"> Codeforces</span> in one place.
         Get powerful analytics and track your problem-solving journey across all platforms simultaneously.
       </motion.p>
 
-      {/* Features Grid */}
       <motion.div
         variants={itemVariants}
-        className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 w-full max-w-3xl"
+        className="mb-12 grid w-full max-w-3xl grid-cols-1 gap-6 md:grid-cols-3"
       >
         {[
-          { icon: "📊", title: "Aggregated Stats", desc: "See all your stats in one dashboard" },
-          { icon: "🎯", title: "Performance Rate", desc: "Get personalized rating & badges" },
-          { icon: "📈", title: "Track Progress", desc: "Monitor your weekly improvement" },
+          {
+            icon: "\uD83D\uDCCA",
+            title: "Aggregated Stats",
+            desc: "See all your stats in one dashboard",
+          },
+          {
+            icon: "\uD83C\uDFAF",
+            title: "Performance Rate",
+            desc: "Get personalized rating & badges",
+          },
+          {
+            icon: "\uD83D\uDCC8",
+            title: "Track Progress",
+            desc: "Monitor your weekly improvement",
+          },
         ].map((feature, idx) => (
           <motion.div
             key={idx}
             whileHover={{ scale: 1.05, y: -5 }}
-            className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 p-6 rounded-xl border border-gray-700/50 backdrop-blur-md hover:border-blue-500/50 transition-colors"
+            className="rounded-xl border border-gray-700/50 bg-gradient-to-br from-gray-800/50 to-gray-900/50 p-6 backdrop-blur-md transition-colors hover:border-blue-500/50"
           >
-            <p className="text-4xl mb-3">{feature.icon}</p>
-            <h3 className="text-xl font-bold mb-2 text-white">{feature.title}</h3>
+            <p className="mb-3 text-4xl">{feature.icon}</p>
+            <h3 className="mb-2 text-xl font-bold text-white">{feature.title}</h3>
             <p className="text-gray-400">{feature.desc}</p>
           </motion.div>
         ))}
       </motion.div>
 
-      {/* CTA Button */}
       <motion.div
         variants={itemVariants}
-        className="flex gap-4"
+        className="flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row"
       >
         <motion.div
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
+          className="w-full sm:w-auto"
         >
           <Link
             href="/dashboard"
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-10 py-4 rounded-xl text-lg font-bold transition-all shadow-lg shadow-blue-600/50 hover:shadow-blue-600/70"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-4 text-base font-bold transition-all hover:from-blue-500 hover:to-purple-500 shadow-lg shadow-blue-600/50 hover:shadow-blue-600/70 sm:w-auto sm:px-10 sm:text-lg"
           >
-            Go to Dashboard →
+            Go to Dashboard -&gt;
           </Link>
         </motion.div>
 
         <motion.div
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
+          className="w-full sm:w-auto"
         >
           <button
-            className="border-2 border-blue-600 hover:border-purple-600 text-blue-400 hover:text-purple-400 px-10 py-4 rounded-xl text-lg font-bold transition-all hover:bg-purple-600/10"
+            className="w-full rounded-xl border-2 border-blue-600 px-8 py-4 text-base font-bold text-blue-400 transition-all hover:border-purple-600 hover:bg-purple-600/10 hover:text-purple-400 sm:w-auto sm:px-10 sm:text-lg"
           >
-            Learn More ↓
+            Learn More v
           </button>
         </motion.div>
       </motion.div>

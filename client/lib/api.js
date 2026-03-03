@@ -1,5 +1,23 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "https://developer-phcu.onrender.com";
+const DEFAULT_REMOTE_API_BASE = "https://developer-phcu.onrender.com";
+
+function resolveApiBaseUrl() {
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (configured && String(configured).trim()) {
+    return String(configured).trim();
+  }
+
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return `${protocol}//${host}:5000`;
+    }
+  }
+
+  return DEFAULT_REMOTE_API_BASE;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -17,7 +35,15 @@ function isAbortLikeError(error) {
   );
 }
 
-async function fetchApi(path, { retries = 1, timeoutMs = 40000 } = {}) {
+function logApiError(scope, error) {
+  if (isAbortLikeError(error)) {
+    console.warn(`${scope}: request timeout`);
+    return;
+  }
+  console.error(`${scope}:`, error);
+}
+
+async function fetchApi(path, { retries = 2, timeoutMs = 90000 } = {}) {
   let lastError = null;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -45,7 +71,7 @@ async function fetchApi(path, { retries = 1, timeoutMs = 40000 } = {}) {
     } catch (error) {
       lastError = error;
       if (attempt < retries) {
-        await wait(400 * attempt);
+        await wait(500 * attempt);
       }
     } finally {
       clearTimeout(timeout);
@@ -94,7 +120,7 @@ export async function getLivePlatformsDebug({
     });
     const payload = await fetchApi(`/api/platforms/live${query}`, {
       retries: 3,
-      timeoutMs: 40000,
+      timeoutMs: 90000,
     });
 
     const normalized = {};
@@ -174,36 +200,36 @@ export async function getLivePlatformsDebug({
 
 export async function getPlatforms() {
   try {
-    return await fetchApi("/api/platforms");
+    return await fetchApi("/api/platforms", { retries: 2, timeoutMs: 90000 });
   } catch (error) {
-    console.error("getPlatforms error:", error);
+    logApiError("getPlatforms error", error);
     return [];
   }
 }
 
 export async function getProfile() {
   try {
-    return await fetchApi("/api/profile");
+    return await fetchApi("/api/profile", { retries: 2, timeoutMs: 90000 });
   } catch (error) {
-    console.error("getProfile error:", error);
+    logApiError("getProfile error", error);
     return null;
   }
 }
 
 export async function getStats() {
   try {
-    return await fetchApi("/api/stats");
+    return await fetchApi("/api/stats", { retries: 2, timeoutMs: 90000 });
   } catch (error) {
-    console.error("getStats error:", error);
+    logApiError("getStats error", error);
     return null;
   }
 }
 
 export async function getWeeklyProgress() {
   try {
-    return await fetchApi("/api/progress/weekly");
+    return await fetchApi("/api/progress/weekly", { retries: 2, timeoutMs: 90000 });
   } catch (error) {
-    console.error("getWeeklyProgress error:", error);
+    logApiError("getWeeklyProgress error", error);
     return { days: [] };
   }
 }
@@ -212,9 +238,9 @@ export async function getWeeklyProgress() {
 export async function getAnalytics({ leetcode, geeksforgeeks } = {}) {
   try {
     const query = toQueryString({ leetcode, geeksforgeeks });
-    return await fetchApi(`/api/stats/analytics${query}`);
+    return await fetchApi(`/api/stats/analytics${query}`, { retries: 2, timeoutMs: 90000 });
   } catch (error) {
-    console.error("getAnalytics error:", error);
+    logApiError("getAnalytics error", error);
     return { languages: [], algorithms: [] };
   }
 }
@@ -222,9 +248,9 @@ export async function getAnalytics({ leetcode, geeksforgeeks } = {}) {
 export async function getLanguages({ leetcode, geeksforgeeks } = {}) {
   try {
     const query = toQueryString({ leetcode, geeksforgeeks });
-    return await fetchApi(`/api/languages${query}`);
+    return await fetchApi(`/api/languages${query}`, { retries: 2, timeoutMs: 90000 });
   } catch (error) {
-    console.error("getLanguages error:", error);
+    logApiError("getLanguages error", error);
     return [];
   }
 }
@@ -232,9 +258,9 @@ export async function getLanguages({ leetcode, geeksforgeeks } = {}) {
 export async function getAlgorithms({ leetcode, geeksforgeeks } = {}) {
   try {
     const query = toQueryString({ leetcode, geeksforgeeks });
-    return await fetchApi(`/api/algorithms${query}`);
+    return await fetchApi(`/api/algorithms${query}`, { retries: 2, timeoutMs: 90000 });
   } catch (error) {
-    console.error("getAlgorithms error:", error);
+    logApiError("getAlgorithms error", error);
     return [];
   }
 }
