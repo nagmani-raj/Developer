@@ -94,7 +94,7 @@ export async function getLivePlatformsDebug({
     });
     const payload = await fetchApi(`/api/platforms/live${query}`, {
       retries: 3,
-      timeoutMs: 20000,
+      timeoutMs: 40000,
     });
 
     const normalized = {};
