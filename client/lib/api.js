@@ -17,7 +17,7 @@ function isAbortLikeError(error) {
   );
 }
 
-async function fetchApi(path, { retries = 1, timeoutMs = 15000 } = {}) {
+async function fetchApi(path, { retries = 1, timeoutMs = 40000 } = {}) {
   let lastError = null;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
