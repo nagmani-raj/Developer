@@ -2,17 +2,8 @@ const { getLeetCodeProfile, getLeetCodeAnalytics } = require("./leetcode");
 const { getUserInfo, getGeeksforGeeksAnalytics } = require("./geeksforgeeks");
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
+const ANALYTICS_SCHEMA_VERSION = "v2";
 const analyticsCache = new Map();
-
-const ALGORITHM_ORDER = [
-  "Array",
-  "String",
-  "Dynamic Programming",
-  "Graph",
-  "Tree",
-  "Hash Table",
-  "Others",
-];
 
 function toSafeNumber(value) {
   const n = Number(value);
@@ -37,34 +28,61 @@ function normalizeLanguageName(name) {
   return raw;
 }
 
+function toTitleCase(raw) {
+  return String(raw || "")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => {
+      if (part.length <= 2) return part.toUpperCase();
+      return part[0].toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
 function normalizeAlgorithmCategory(name) {
-  const key = String(name || "").toLowerCase().trim();
+  const raw = String(name || "").trim();
+  const key = raw.toLowerCase();
   if (!key) return "Others";
 
-  if (key.includes("array")) return "Array";
-  if (key.includes("string")) return "String";
-  if (key.includes("dynamic programming") || key === "dp") {
-    return "Dynamic Programming";
-  }
-  if (
-    key.includes("graph") ||
-    key.includes("shortest path") ||
-    key.includes("union find") ||
-    key.includes("topological")
-  ) {
-    return "Graph";
-  }
-  if (
-    key.includes("tree") ||
-    key.includes("trie") ||
-    key.includes("segment tree") ||
-    key.includes("binary indexed tree")
-  ) {
-    return "Tree";
-  }
-  if (key.includes("hash")) return "Hash Table";
+  const canonicalKey = key
+    .replace(/[^a-z0-9+\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-  return "Others";
+  const aliasMap = {
+    arrays: "Array",
+    array: "Array",
+    strings: "String",
+    string: "String",
+    "dynamic programming": "Dynamic Programming",
+    dp: "Dynamic Programming",
+    "dynamic programing": "Dynamic Programming",
+    "hash table": "Hash Table",
+    hash: "Hash Table",
+    hashing: "Hash Table",
+    hashmap: "Hash Table",
+    "hash map": "Hash Table",
+    hashtable: "Hash Table",
+    "unordered map": "Hash Table",
+    maths: "Math",
+    math: "Math",
+    mathematics: "Math",
+    mathematical: "Math",
+    greedy: "Greedy",
+    graph: "Graph",
+    graphs: "Graph",
+    trees: "Tree",
+    tree: "Tree",
+    trie: "Trie",
+    "binary search tree": "Tree",
+    "segment tree": "Segment Tree",
+  };
+
+  if (aliasMap[canonicalKey]) return aliasMap[canonicalKey];
+  if (canonicalKey.includes("hash")) return "Hash Table";
+  if (canonicalKey.includes("math")) return "Math";
+
+  return toTitleCase(raw.replace(/\s+/g, " "));
 }
 
 function sortByProblemsDesc(items, key) {
@@ -100,7 +118,7 @@ function mergeCountMap(target, sourceMap, normalizeName, fallbackName = "Others"
 async function getCombinedAnalytics({ leetcode, geeksforgeeks } = {}) {
   const lcHandle = String(leetcode || "").trim();
   const gfgHandle = String(geeksforgeeks || "").trim();
-  const cacheKey = `${lcHandle.toLowerCase()}|${gfgHandle.toLowerCase()}`;
+  const cacheKey = `${ANALYTICS_SCHEMA_VERSION}:${lcHandle.toLowerCase()}|${gfgHandle.toLowerCase()}`;
   const cached = analyticsCache.get(cacheKey);
 
   if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
@@ -108,7 +126,7 @@ async function getCombinedAnalytics({ leetcode, geeksforgeeks } = {}) {
   }
 
   const languageCounts = {};
-  const categoryCounts = Object.fromEntries(ALGORITHM_ORDER.map((name) => [name, 0]));
+  const categoryCounts = {};
   const sourceStatus = {
     leetcode: { ok: false, error: null },
     geeksforgeeks: { ok: false, error: null },
@@ -191,6 +209,9 @@ async function getCombinedAnalytics({ leetcode, geeksforgeeks } = {}) {
   if (Object.keys(languageCounts).length === 0) {
     languageCounts.Others = 0;
   }
+  if (Object.keys(categoryCounts).length === 0) {
+    categoryCounts.Others = 0;
+  }
 
   const languageRows = withPercentages(
     sortByProblemsDesc(
@@ -205,9 +226,9 @@ async function getCombinedAnalytics({ leetcode, geeksforgeeks } = {}) {
 
   const algorithmRows = withPercentages(
     sortByProblemsDesc(
-      ALGORITHM_ORDER.map((category) => ({
+      Object.entries(categoryCounts).map(([category, count]) => ({
         category,
-        count: toSafeNumber(categoryCounts[category]),
+        count: toSafeNumber(count),
       })),
       "count"
     ),

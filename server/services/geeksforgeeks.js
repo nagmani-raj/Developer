@@ -26,6 +26,16 @@ async function fetchJson(url) {
   return response.json();
 }
 
+const GFG_SUBMISSIONS_API =
+  "https://practiceapi.geeksforgeeks.org/api/v1/user/problems/submissions/";
+const GFG_PROBLEM_URL = "https://www.geeksforgeeks.org/problems";
+const ANALYTICS_CACHE_TTL_MS = 10 * 60 * 1000;
+const GFG_SCAN_LIMIT = 120;
+const GFG_TAG_FETCH_CONCURRENCY = 8;
+
+const problemTagCache = new Map();
+const analyticsCache = new Map();
+
 async function fetchFirstAvailable(urls) {
   let lastError = null;
 
@@ -88,18 +98,159 @@ function countProblemsByDifficulty(result, key) {
   return Object.keys(bucket).length;
 }
 
-async function fetchDifficultyStats(username) {
-  const response = await fetch(
-    "https://practiceapi.geeksforgeeks.org/api/v1/user/problems/submissions/",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      },
-      body: JSON.stringify({ handle: username }),
-    }
+function normalizeText(value) {
+  return String(value || "").trim().replace(/\s+/g, " ");
+}
+
+function getJsonPayloadFromHtml(html) {
+  const match = html.match(
+    /<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/i
   );
+  if (!match || !match[1]) return null;
+
+  try {
+    return JSON.parse(match[1]);
+  } catch (_) {
+    return null;
+  }
+}
+
+function findTopicTags(value) {
+  if (!value || typeof value !== "object") {
+    return [];
+  }
+
+  const queue = [value];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || typeof current !== "object") {
+      continue;
+    }
+
+    if (Array.isArray(current)) {
+      current.forEach((item) => queue.push(item));
+      continue;
+    }
+
+    const obj = current;
+    if (
+      Array.isArray(obj.topic_tags) &&
+      obj.topic_tags.every((item) => typeof item === "string")
+    ) {
+      return obj.topic_tags.map((tag) => normalizeText(tag)).filter(Boolean);
+    }
+
+    Object.values(obj).forEach((item) => queue.push(item));
+  }
+
+  return [];
+}
+
+async function mapWithConcurrency(items, limit, mapper) {
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+    }
+  }
+
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
+async function fetchSolvedProblems(username) {
+  const response = await fetch(GFG_SUBMISSIONS_API, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    },
+    body: JSON.stringify({
+      handle: username,
+      requestType: "",
+      year: "",
+      month: "",
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`GeeksforGeeks submissions request failed: ${response.status}`);
+  }
+
+  const payload = await response.json();
+  const result = payload?.result;
+  if (!result || typeof result !== "object") {
+    throw new Error("No solved problems found for this GeeksforGeeks username");
+  }
+
+  const uniqueBySlug = new Map();
+  const languageCounts = {};
+
+  Object.values(result).forEach((bucket) => {
+    if (!bucket || typeof bucket !== "object") return;
+
+    Object.values(bucket).forEach((problem) => {
+      const slug = normalizeText(problem?.slug);
+      if (!slug) return;
+      if (uniqueBySlug.has(slug)) return;
+
+      uniqueBySlug.set(slug, {
+        slug,
+        lang: normalizeText(problem?.lang),
+      });
+
+      if (problem?.lang) {
+        const language = normalizeText(problem.lang);
+        if (language) {
+          languageCounts[language] = (languageCounts[language] || 0) + 1;
+        }
+      }
+    });
+  });
+
+  return {
+    solvedProblems: Array.from(uniqueBySlug.values()),
+    languageCounts,
+  };
+}
+
+async function fetchTopicTagsForSlug(slug) {
+  const cacheKey = String(slug || "").trim().toLowerCase();
+  if (!cacheKey) return [];
+
+  const cached = problemTagCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const html = await fetchText(`${GFG_PROBLEM_URL}/${encodeURIComponent(slug)}/1`);
+    const jsonPayload = getJsonPayloadFromHtml(html);
+    const tags = findTopicTags(jsonPayload).filter(Boolean);
+    problemTagCache.set(cacheKey, tags);
+    return tags;
+  } catch (_) {
+    problemTagCache.set(cacheKey, []);
+    return [];
+  }
+}
+
+async function fetchDifficultyStats(username) {
+  const response = await fetch(GFG_SUBMISSIONS_API, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    },
+    body: JSON.stringify({ handle: username }),
+  });
 
   if (!response.ok) {
     throw new Error(`GeeksforGeeks submissions request failed: ${response.status}`);
@@ -307,22 +458,61 @@ async function getUserInfo(username) {
 }
 
 async function getGeeksforGeeksAnalytics(username) {
-  // at the moment we don't have fine-grained tag data for GFG,
-  // so just return empty maps; analytics service will count
-  // unresolved problems into Others.
   if (!username || !String(username).trim()) {
     throw new Error("GeeksforGeeks username is required");
   }
 
-  // we could extend this in future by scraping submissions or
-  // using other internal APIs.
-  const info = await getUserInfo(username).catch(() => null);
-  const total = (info && (info.totalSolved || info.total)) || 0;
-  return {
-    languages: {},
-    categories: {},
-    categoryTotal: total,
+  const normalizedUsername = String(username).trim();
+  const cacheKey = normalizedUsername.toLowerCase();
+  const cached = analyticsCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < ANALYTICS_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  const { solvedProblems, languageCounts } = await fetchSolvedProblems(normalizedUsername);
+  const totalSolved = solvedProblems.length;
+  const scannedProblems = solvedProblems.slice(0, GFG_SCAN_LIMIT);
+
+  const tagsPerProblem = await mapWithConcurrency(
+    scannedProblems,
+    GFG_TAG_FETCH_CONCURRENCY,
+    (problem) => fetchTopicTagsForSlug(problem.slug)
+  );
+
+  const categories = {};
+  let problemsWithNoTags = 0;
+
+  tagsPerProblem.forEach((tags) => {
+    if (!Array.isArray(tags) || tags.length === 0) {
+      problemsWithNoTags += 1;
+      return;
+    }
+
+    tags.forEach((tag) => {
+      const topic = normalizeText(tag);
+      if (!topic) return;
+      categories[topic] = (categories[topic] || 0) + 1;
+    });
+  });
+
+  const unscannedProblems = Math.max(0, totalSolved - scannedProblems.length);
+  const unresolvedProblems = problemsWithNoTags + unscannedProblems;
+  if (unresolvedProblems > 0) {
+    categories.Others = (categories.Others || 0) + unresolvedProblems;
+  }
+
+  const result = {
+    languages: languageCounts,
+    categories,
+    categoryTotal: totalSolved,
   };
+
+  analyticsCache.set(cacheKey, {
+    data: result,
+    ts: Date.now(),
+  });
+
+  return result;
 }
 
 module.exports = {

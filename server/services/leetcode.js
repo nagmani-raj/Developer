@@ -14,6 +14,24 @@ const query = `
           count
         }
       }
+      languageProblemCount {
+        languageName
+        problemsSolved
+      }
+      tagProblemCounts {
+        advanced {
+          tagName
+          problemsSolved
+        }
+        intermediate {
+          tagName
+          problemsSolved
+        }
+        fundamental {
+          tagName
+          problemsSolved
+        }
+      }
     }
     userContestRanking(username: $username) {
       rating
@@ -178,45 +196,41 @@ async function getLeetCodeAnalytics(username) {
     throw new Error("LeetCode username is required");
   }
 
-  // fetch master problems list (includes status per user)
-  const url = "https://leetcode.com/api/problems/all/";
-  const fetchFn = await getFetch();
-  const res = await fetchFn(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0",
-      Accept: "application/json",
-    },
-  });
-  if (!res.ok) {
-    throw new Error(`LeetCode problems fetch failed: ${res.status}`);
+  const normalizedUsername = String(username).trim();
+  const data = await fetchLeetCode(normalizedUsername);
+  const user = data?.data?.matchedUser;
+  if (!user) {
+    throw new Error("LeetCode user not found");
   }
 
-  const payload = await res.json();
-  const pairs = payload.stat_status_pairs || [];
-  const categories = {};
-  let total = 0;
-
-  pairs.forEach((item) => {
-    // status 1 means accepted
-    if (item.status === 1) {
-      total += 1;
-      const tags = (item.stat || {}).topicTags || [];
-      if (Array.isArray(tags) && tags.length > 0) {
-        tags.forEach((tag) => {
-          const name = String(tag.name || "");
-          if (!name) return;
-          categories[name] = (categories[name] || 0) + 1;
-        });
-      } else {
-        categories.Others = (categories.Others || 0) + 1;
-      }
-    }
+  const languages = {};
+  (user.languageProblemCount || []).forEach((row) => {
+    const name = String(row?.languageName || "").trim();
+    const solved = Number(row?.problemsSolved);
+    if (!name || !Number.isFinite(solved) || solved <= 0) return;
+    languages[name] = (languages[name] || 0) + solved;
   });
+
+  const categories = {};
+  const buckets = user.tagProblemCounts || {};
+  ["advanced", "intermediate", "fundamental"].forEach((level) => {
+    const tags = Array.isArray(buckets[level]) ? buckets[level] : [];
+    tags.forEach((tag) => {
+      const name = String(tag?.tagName || "").trim();
+      const solved = Number(tag?.problemsSolved);
+      if (!name || !Number.isFinite(solved) || solved <= 0) return;
+      categories[name] = (categories[name] || 0) + solved;
+    });
+  });
+
+  const stats = user.submitStats?.acSubmissionNum || [];
+  const totalRow = stats.find((row) => row?.difficulty === "All");
+  const total = Number(totalRow?.count);
 
   return {
     categories,
-    languages: {},
-    categoryTotal: total,
+    languages,
+    categoryTotal: Number.isFinite(total) && total > 0 ? total : 0,
   };
 }
 
