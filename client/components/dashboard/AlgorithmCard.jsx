@@ -8,6 +8,7 @@ import { getAlgorithms } from "@/lib/api";
 export default function AlgorithmCard({ refreshKey }) {
   const [algorithms, setAlgorithms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     const loadAlgorithms = async () => {
@@ -32,6 +33,11 @@ export default function AlgorithmCard({ refreshKey }) {
     () => algorithms.reduce((sum, algo) => sum + (algo.count || 0), 0),
     [algorithms]
   );
+  const visibleAlgorithms = useMemo(
+    () => (showAll ? algorithms : algorithms.slice(0, 5)),
+    [algorithms, showAll]
+  );
+  const canToggle = algorithms.length > 5;
 
   return (
     <motion.div
@@ -49,7 +55,7 @@ export default function AlgorithmCard({ refreshKey }) {
         <p className="text-gray-400">No algorithm data available</p>
       ) : (
         <div className="space-y-3">
-          {algorithms.map((algo) => {
+          {visibleAlgorithms.map((algo) => {
             const percent = totalProblems ? Math.round((algo.count / totalProblems) * 100) : 0;
             return (
               <div key={algo.category} className="flex items-center justify-between bg-gray-800/60 border border-gray-700 rounded-lg px-3 py-2">
@@ -60,9 +66,17 @@ export default function AlgorithmCard({ refreshKey }) {
               </div>
             );
           })}
+          {canToggle ? (
+            <button
+              type="button"
+              onClick={() => setShowAll((prev) => !prev)}
+              className="text-pink-300 hover:text-pink-200 text-sm font-medium"
+            >
+              {showAll ? "See less" : "See more"}
+            </button>
+          ) : null}
         </div>
       )}
     </motion.div>
   );
 }
-

@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from "react";
 import ProfileCard from "@/components/dashboard/ProfileCard";
 import ScoreCard from "@/components/dashboard/ScoreCard";
-import ProgressGraph from "@/components/dashboard/ProgressGraph";
 import PlatformCard from "@/components/dashboard/PlatformCard";
 import PlatformSettings from "@/components/dashboard/PlatformSettings";
 import LanguageCard from "@/components/dashboard/LanguageCard";
@@ -157,7 +156,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-12 pb-12">
       <section>
-        <ProfileCard />
+        <ProfileCard refreshKey={analyticsKey} />
       </section>
 
       <section>
@@ -187,7 +186,6 @@ export default function Dashboard() {
 
         <div className="space-y-8">
           <ScoreCard aggregatedStats={aggregatedStats} loading={loading} />
-          <ProgressGraph />
         </div>
       </section>
 

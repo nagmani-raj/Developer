@@ -5,7 +5,41 @@ import { motion } from "framer-motion";
 import { calculateScore, getRatingLevel } from "@/lib/scoreCalculator";
 import { getLivePlatformsDebug, getPlatforms, getProfile } from "@/lib/api";
 
-export default function ProfileCard() {
+function normalizeHandleToName(handle) {
+  const raw = String(handle || "").trim();
+  if (!raw) return "";
+
+  const withSpaces = raw
+    .replace(/[_\-.]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const tokens = withSpaces
+    .split(" ")
+    .map((part) => part.replace(/^\d+|\d+$/g, ""))
+    .filter(Boolean);
+
+  if (tokens.length === 0) return "";
+
+  return tokens
+    .slice(0, 3)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function inferDisplayNameFromHandles(handles) {
+  const priority = [handles.leetcode, handles.codeforces, handles.geeksforgeeks, handles.github];
+
+  for (const handle of priority) {
+    const normalized = normalizeHandleToName(handle);
+    if (normalized.length >= 3) return normalized;
+  }
+
+  return "";
+}
+
+export default function ProfileCard({ refreshKey = 0 }) {
   const [profileData, setProfileData] = useState(null);
   const [aggregatedStats, setAggregatedStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -109,6 +143,12 @@ export default function ProfileCard() {
           typeof window !== "undefined" ? localStorage.getItem("LEETCODE_USERNAME") : null;
         const gfg =
           typeof window !== "undefined" ? localStorage.getItem("GEEKSFORGEEKS_USERNAME") : null;
+        const gh =
+          typeof window !== "undefined"
+            ? localStorage.getItem("GITHUB_USERNAME") ||
+              localStorage.getItem("GITHUB_HANDLE") ||
+              localStorage.getItem("LAST_GITHUB_USERNAME")
+            : null;
 
         const liveResult = await getLivePlatformsDebug({
           codeforces: cf || undefined,
@@ -118,8 +158,19 @@ export default function ProfileCard() {
 
         const mergedPlatforms = applyLiveData(basePlatforms, liveResult.normalized || {});
         const stats = buildAggregatedStats(mergedPlatforms);
+        const inferredName = inferDisplayNameFromHandles({
+          codeforces: cf,
+          leetcode: lc,
+          geeksforgeeks: gfg,
+          github: gh,
+        });
+        const resolvedName =
+          inferredName || String(profile?.name || "").trim() || "Developer";
 
-        setProfileData(profile);
+        setProfileData({
+          ...(profile || {}),
+          name: resolvedName,
+        });
         setAggregatedStats(stats);
       } catch (error) {
         console.error("Error loading profile data:", error);
@@ -129,7 +180,7 @@ export default function ProfileCard() {
     };
 
     loadData();
-  }, []);
+  }, [refreshKey]);
 
   if (loading) {
     return (
@@ -148,6 +199,7 @@ export default function ProfileCard() {
   }
 
   const ratingInfo = getRatingLevel(aggregatedStats.totalScore);
+  const displayName = String(profileData?.name || "").trim() || "Developer";
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -158,43 +210,28 @@ export default function ProfileCard() {
     },
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.4 } },
-  };
-
   return (
     <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-2xl border-2 border-blue-600/50 backdrop-blur-md overflow-hidden relative group"
+      className="bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-2xl border-2 border-blue-600/50 backdrop-blur-md overflow-hidden"
     >
-      <motion.div
-        className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-        animate={{ backgroundPosition: ["0% 0%", "100% 100%"] }}
-        transition={{ duration: 5, repeat: Infinity }}
-      />
-
-      <div className="relative z-10">
-        <div className="flex flex-col md:flex-row items-center gap-8 mb-6">
-          <motion.div
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            transition={{ type: "spring", stiffness: 300 }}
-            className="flex-shrink-0"
-          >
+      <div>
+        <div className="flex flex-col md:flex-row items-start gap-6 mb-6">
+          <motion.div whileHover={{ scale: 1.05 }} className="flex-shrink-0">
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-4xl font-bold text-white border-4 border-blue-400 shadow-lg shadow-blue-500/50">
               {profileData.name?.charAt(0) || "D"}
             </div>
           </motion.div>
 
-          <motion.div variants={itemVariants} className="flex-1">
-            <h2 className="text-4xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
-              {profileData.name}
+          <div className="flex-1 min-w-0 bg-slate-900/60 border border-slate-700 rounded-xl p-4 md:p-5">
+            <h2 className="text-3xl md:text-4xl font-extrabold mb-2 leading-tight text-cyan-300">
+              {displayName}
             </h2>
-            <p className="text-gray-400 mb-1">{profileData.bio}</p>
-            <p className="text-sm text-gray-500">{profileData.email}</p>
-          </motion.div>
+            {profileData.bio ? <p className="text-gray-200 mb-1">{profileData.bio}</p> : null}
+            {/* {profileData.email ? <p className="text-sm text-blue-200">{profileData.email}</p> : null} */}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

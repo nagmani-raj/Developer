@@ -5,13 +5,13 @@ export const calculateScore = (easy, medium, hard) => {
 
 // Rating Levels based on total score
 export const getRatingLevel = (totalScore) => {
-  if (totalScore >= 30000) return { level: "👑 Legendary", color: "text-purple-400" };
-  if (totalScore >= 25000) return { level: "⭐ Master", color: "text-yellow-400" };
-  if (totalScore >= 20000) return { level: "🏆 Expert", color: "text-orange-400" };
-  if (totalScore >= 15000) return { level: "🎖️ Professional", color: "text-blue-400" };
-  if (totalScore >= 10000) return { level: "✨ Advanced", color: "text-green-400" };
-  if (totalScore >= 5000) return { level: "📈 Intermediate", color: "text-cyan-400" };
-  if (totalScore >= 2000) return { level: "🌱 Beginner", color: "text-gray-400" };
+  if (totalScore >= 350000) return { level: "👑 Legendary", color: "text-purple-400" };
+  if (totalScore >= 250000) return { level: "⭐ Master", color: "text-yellow-400" };
+  if (totalScore >= 150000) return { level: "🏆 Expert", color: "text-orange-400" };
+  if (totalScore >= 100000) return { level: "🎖️ Professional", color: "text-blue-400" };
+  if (totalScore >= 50000) return { level: "✨ Advanced", color: "text-green-400" };
+  if (totalScore >= 30000) return { level: "📈 Intermediate", color: "text-cyan-400" };
+  if (totalScore >= 20000) return { level: "🌱 Beginner", color: "text-gray-400" };
   return { level: "🚀 Starter", color: "text-red-400" };
 };
 
