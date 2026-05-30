@@ -8,172 +8,141 @@ import { getLivePlatformsDebug, getPlatforms, getProfile } from "@/lib/api";
 function normalizeHandleToName(handle) {
   const raw = String(handle || "").trim();
   if (!raw) return "";
-
   const withSpaces = raw
     .replace(/[_\-.]+/g, " ")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/\s+/g, " ")
     .trim();
-
   const tokens = withSpaces
     .split(" ")
     .map((part) => part.replace(/^\d+|\d+$/g, ""))
     .filter(Boolean);
-
   if (tokens.length === 0) return "";
-
   return tokens
     .slice(0, 3)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
     .join(" ");
 }
 
 function inferDisplayNameFromHandles(handles) {
   const priority = [handles.leetcode, handles.codeforces, handles.geeksforgeeks, handles.github];
-
   for (const handle of priority) {
     const normalized = normalizeHandleToName(handle);
     if (normalized.length >= 3) return normalized;
   }
-
   return "";
+}
+
+// ── Loading Skeleton ──
+function ProfileSkeleton() {
+  return (
+    <div className="glass-card p-6 sm:p-8">
+      <div className="flex items-start gap-5 mb-6">
+        <div className="w-20 h-20 rounded-2xl shimmer flex-shrink-0" />
+        <div className="flex-1 space-y-3">
+          <div className="h-7 w-48 rounded-lg shimmer" />
+          <div className="h-4 w-64 rounded shimmer" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-20 rounded-xl shimmer" />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function ProfileCard({ refreshKey = 0 }) {
   const [profileData, setProfileData] = useState(null);
   const [aggregatedStats, setAggregatedStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    const toNumber = (value) => {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : null;
+    const toNumber = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
     };
 
-    const applyLiveData = (currentPlatforms, live) => {
-      if (!Array.isArray(currentPlatforms)) return [];
-      if (!live || typeof live !== "object") return currentPlatforms;
-
-      return currentPlatforms.map((platform) => {
+    const applyLiveData = (platforms, live) => {
+      if (!Array.isArray(platforms)) return [];
+      if (!live || typeof live !== "object") return platforms;
+      return platforms.map((platform) => {
         const name = String(platform?.name || "").toLowerCase();
-        const updated = { ...platform };
-
+        const upd = { ...platform };
         if (name === "leetcode" && live.leetcode) {
           const lc = live.leetcode;
-          updated.easy = toNumber(lc.easy) ?? platform.easy;
-          updated.medium = toNumber(lc.medium) ?? platform.medium;
-          updated.hard = toNumber(lc.hard) ?? platform.hard;
-          updated.total = toNumber(lc.totalSolved) ?? platform.total;
-          updated.rating = toNumber(lc.contestRating) ?? platform.rating;
-          updated.rank = toNumber(lc.contestGlobalRanking) ?? platform.rank;
+          upd.easy   = toNumber(lc.easy)          ?? platform.easy;
+          upd.medium = toNumber(lc.medium)         ?? platform.medium;
+          upd.hard   = toNumber(lc.hard)           ?? platform.hard;
+          upd.total  = toNumber(lc.totalSolved)    ?? platform.total;
+          upd.rating = toNumber(lc.contestRating)  ?? platform.rating;
+          upd.rank   = toNumber(lc.contestGlobalRanking) ?? platform.rank;
         }
-
         if (name === "codeforces" && live.codeforces) {
           const cf = live.codeforces;
-          updated.easy = null;
-          updated.medium = null;
-          updated.hard = null;
-          updated.total = toNumber(cf.totalSolved) ?? platform.total;
-          updated.rating = toNumber(cf.rating) ?? platform.rating;
-          updated.rank = toNumber(cf.rank) ?? platform.rank;
+          upd.easy   = null;
+          upd.medium = null;
+          upd.hard   = null;
+          upd.total  = toNumber(cf.totalSolved) ?? platform.total;
+          upd.rating = toNumber(cf.rating)      ?? platform.rating;
+          upd.rank   = toNumber(cf.rank)        ?? platform.rank;
         }
-
         if (name === "geeksforgeeks" && live.geeksforgeeks) {
           const gfg = live.geeksforgeeks;
-          updated.easy = toNumber(gfg.easy) ?? platform.easy;
-          updated.medium = toNumber(gfg.medium) ?? platform.medium;
-          updated.hard = toNumber(gfg.hard) ?? platform.hard;
-          updated.total =
-            toNumber(gfg.totalSolved) ??
-            toNumber(gfg.total) ??
-            toNumber(gfg.score) ??
-            platform.total;
-          updated.rating = toNumber(gfg.codingScore) ?? toNumber(gfg.score) ?? platform.rating;
-          updated.rank = toNumber(gfg.rank) ?? platform.rank;
+          upd.easy   = toNumber(gfg.easy)           ?? platform.easy;
+          upd.medium = toNumber(gfg.medium)          ?? platform.medium;
+          upd.hard   = toNumber(gfg.hard)            ?? platform.hard;
+          upd.total  = toNumber(gfg.totalSolved) ?? toNumber(gfg.total) ?? toNumber(gfg.score) ?? platform.total;
+          upd.rating = toNumber(gfg.codingScore) ?? toNumber(gfg.score) ?? platform.rating;
+          upd.rank   = toNumber(gfg.rank)            ?? platform.rank;
         }
-
-        return updated;
+        return upd;
       });
     };
 
-    const buildAggregatedStats = (platforms) => {
-      const safePlatforms = Array.isArray(platforms) ? platforms : [];
-
-      const totals = safePlatforms
-        .map((p) => toNumber(p.total))
-        .filter((n) => n !== null);
-      const totalSolved = totals.reduce((sum, value) => sum + value, 0);
-
-      const ratings = safePlatforms
-        .map((p) => toNumber(p.rating))
-        .filter((n) => n !== null);
-      const averageRatingRaw =
+    const buildStats = (platforms) => {
+      const safe = Array.isArray(platforms) ? platforms : [];
+      const totals = safe.map((p) => toNumber(p.total)).filter((n) => n !== null);
+      const totalSolved = totals.reduce((s, v) => s + v, 0);
+      const ratings = safe.map((p) => toNumber(p.rating)).filter((n) => n !== null);
+      const averageRating =
         ratings.length > 0
-          ? ratings.reduce((sum, value) => sum + value, 0) / ratings.length
+          ? Number((ratings.reduce((s, v) => s + v, 0) / ratings.length).toFixed(1))
           : 0;
-
-      const totalScore = safePlatforms.reduce((sum, p) => {
-        const easy = toNumber(p.easy);
-        const medium = toNumber(p.medium);
-        const hard = toNumber(p.hard);
-        const total = toNumber(p.total);
-
-        if (easy !== null && medium !== null && hard !== null) {
-          return sum + calculateScore(easy, medium, hard);
-        }
-
-        // Fallback score for platforms without difficulty split (e.g., Codeforces).
-        return sum + (total !== null ? total * 50 : 0);
+      const totalScore = safe.reduce((sum, p) => {
+        const e = toNumber(p.easy), m = toNumber(p.medium), h = toNumber(p.hard), t = toNumber(p.total);
+        if (e !== null && m !== null && h !== null) return sum + calculateScore(e, m, h);
+        return sum + (t !== null ? t * 50 : 0);
       }, 0);
-
-      return {
-        totalSolved,
-        totalScore,
-        averageRating: Number(averageRatingRaw.toFixed(1)),
-      };
+      return { totalSolved, totalScore, averageRating };
     };
 
     const loadData = async () => {
       try {
         const [profile, basePlatforms] = await Promise.all([getProfile(), getPlatforms()]);
-
-        const cf =
-          typeof window !== "undefined" ? localStorage.getItem("CODEFORCES_HANDLE") : null;
-        const lc =
-          typeof window !== "undefined" ? localStorage.getItem("LEETCODE_USERNAME") : null;
-        const gfg =
-          typeof window !== "undefined" ? localStorage.getItem("GEEKSFORGEEKS_USERNAME") : null;
-        const gh =
-          typeof window !== "undefined"
-            ? localStorage.getItem("GITHUB_USERNAME") ||
-              localStorage.getItem("GITHUB_HANDLE") ||
-              localStorage.getItem("LAST_GITHUB_USERNAME")
-            : null;
+        const cf  = typeof window !== "undefined" ? localStorage.getItem("CODEFORCES_HANDLE") : null;
+        const lc  = typeof window !== "undefined" ? localStorage.getItem("LEETCODE_USERNAME") : null;
+        const gfg = typeof window !== "undefined" ? localStorage.getItem("GEEKSFORGEEKS_USERNAME") : null;
+        const gh  = typeof window !== "undefined"
+          ? localStorage.getItem("GITHUB_USERNAME") || localStorage.getItem("GITHUB_HANDLE") || localStorage.getItem("LAST_GITHUB_USERNAME")
+          : null;
 
         const liveResult = await getLivePlatformsDebug({
           codeforces: cf || undefined,
           leetcode: lc || undefined,
           geeksforgeeks: gfg || undefined,
         });
-
-        const mergedPlatforms = applyLiveData(basePlatforms, liveResult.normalized || {});
-        const stats = buildAggregatedStats(mergedPlatforms);
-        const inferredName = inferDisplayNameFromHandles({
-          codeforces: cf,
-          leetcode: lc,
-          geeksforgeeks: gfg,
-          github: gh,
-        });
-        const resolvedName =
-          inferredName || String(profile?.name || "").trim() || "Developer";
-
-        setProfileData({
-          ...(profile || {}),
-          name: resolvedName,
-        });
+        const merged = applyLiveData(basePlatforms, liveResult.normalized || {});
+        const stats  = buildStats(merged);
+        const inferredName = inferDisplayNameFromHandles({ codeforces: cf, leetcode: lc, geeksforgeeks: gfg, github: gh });
+        const resolvedName = inferredName || String(profile?.name || "").trim() || "Developer";
+        setProfileData({ ...(profile || {}), name: resolvedName });
         setAggregatedStats(stats);
-      } catch (error) {
-        console.error("Error loading profile data:", error);
+      } catch (err) {
+        console.error("Error loading profile data:", err);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -182,90 +151,157 @@ export default function ProfileCard({ refreshKey = 0 }) {
     loadData();
   }, [refreshKey]);
 
-  if (loading) {
-    return (
-      <motion.div className="bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-2xl border-2 border-blue-600/50 backdrop-blur-md h-64 flex items-center justify-center">
-        <p className="text-gray-400">Loading profile...</p>
-      </motion.div>
-    );
-  }
+  if (loading) return <ProfileSkeleton />;
 
-  if (!profileData || !aggregatedStats) {
+  if (error || !profileData || !aggregatedStats) {
     return (
-      <motion.div className="bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-2xl border-2 border-blue-600/50 backdrop-blur-md h-64 flex items-center justify-center">
-        <p className="text-red-300">Backend data not available. Start backend on port 5000.</p>
-      </motion.div>
+      <div
+        className="glass-card p-6 flex items-center gap-4 rounded-2xl"
+        style={{ borderColor: "rgba(239,68,68,0.2)" }}
+      >
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background: "rgba(239,68,68,0.15)" }}>⚠️</div>
+        <div>
+          <p className="font-semibold text-sm" style={{ color: "#fca5a5" }}>Backend not available</p>
+          <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>Start the backend server on port 5000 to load profile data.</p>
+        </div>
+      </div>
     );
   }
 
   const ratingInfo = getRatingLevel(aggregatedStats.totalScore);
   const displayName = String(profileData?.name || "").trim() || "Developer";
+  const initials = displayName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
-  const containerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.6, ease: "easeOut" },
+  const statItems = [
+    {
+      label: "Problems Solved",
+      value: aggregatedStats.totalSolved,
+      icon: "🏆",
+      color: "#3b82f6",
+      bg: "rgba(59,130,246,0.1)",
+      border: "rgba(59,130,246,0.2)",
     },
-  };
+    {
+      label: "Total Score",
+      value: aggregatedStats.totalScore,
+      icon: "⭐",
+      color: "#f59e0b",
+      bg: "rgba(245,158,11,0.1)",
+      border: "rgba(245,158,11,0.2)",
+    },
+    {
+      label: "Avg Rating",
+      value: aggregatedStats.averageRating,
+      icon: "📈",
+      color: "#8b5cf6",
+      bg: "rgba(139,92,246,0.1)",
+      border: "rgba(139,92,246,0.2)",
+    },
+    {
+      label: "Level",
+      value: ratingInfo.level,
+      icon: "🎖️",
+      color: "#10b981",
+      bg: "rgba(16,185,129,0.1)",
+      border: "rgba(16,185,129,0.2)",
+      isText: true,
+    },
+  ];
 
   return (
     <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-2xl border-2 border-blue-600/50 backdrop-blur-md overflow-hidden"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      className="glass-card p-6 sm:p-8 relative overflow-hidden"
     >
-      <div>
-        <div className="flex flex-col md:flex-row items-start gap-6 mb-6">
+      {/* Background accent */}
+      <div
+        className="absolute top-0 right-0 w-64 h-64 rounded-full pointer-events-none"
+        style={{
+          background: "radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)",
+          transform: "translate(30%, -30%)",
+        }}
+      />
+
+      <div className="relative z-10">
+        {/* Profile header */}
+        <div className="flex flex-col sm:flex-row items-start gap-5 mb-7">
+          {/* Avatar */}
           <motion.div whileHover={{ scale: 1.05 }} className="flex-shrink-0">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-4xl font-bold text-white border-4 border-blue-400 shadow-lg shadow-blue-500/50">
-              {profileData.name?.charAt(0) || "D"}
+            <div
+              className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white relative"
+              style={{
+                background: "linear-gradient(135deg, #1d4ed8, #7c3aed)",
+                boxShadow: "0 0 30px rgba(59,130,246,0.35), 0 8px 20px rgba(0,0,0,0.4)",
+              }}
+            >
+              {initials}
+              {/* Online dot */}
+              <span
+                className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 pulse-dot"
+                style={{
+                  background: "#10b981",
+                  borderColor: "var(--bg-base)",
+                  boxShadow: "0 0 8px rgba(16,185,129,0.6)",
+                }}
+              />
             </div>
           </motion.div>
 
-          <div className="flex-1 min-w-0 bg-slate-900/60 border border-slate-700 rounded-xl p-4 md:p-5">
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-2 leading-tight text-cyan-300">
-              {displayName}
-            </h2>
-            {profileData.bio ? <p className="text-gray-200 mb-1">{profileData.bio}</p> : null}
-            {/* {profileData.email ? <p className="text-sm text-blue-200">{profileData.email}</p> : null} */}
+          {/* Name & info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2.5 flex-wrap mb-1.5">
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={{ color: "#f8fafc" }}>
+                {displayName}
+              </h2>
+              <span
+                className="badge badge-blue"
+                style={{ fontSize: "0.7rem" }}
+              >
+                {ratingInfo.level}
+              </span>
+            </div>
+            {profileData.bio && (
+              <p className="text-sm leading-relaxed mb-2" style={{ color: "#64748b" }}>
+                {profileData.bio}
+              </p>
+            )}
+            <p className="text-xs" style={{ color: "#334155" }}>
+              Competitive Programmer · Developer
+            </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="bg-blue-600/20 p-4 rounded-lg border border-blue-500/30 hover:border-blue-500/60 transition-colors"
-          >
-            <p className="text-gray-400 text-sm">Total Solved</p>
-            <p className="text-3xl font-bold text-blue-300">{aggregatedStats.totalSolved}</p>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="bg-yellow-600/20 p-4 rounded-lg border border-yellow-500/30 hover:border-yellow-500/60 transition-colors"
-          >
-            <p className="text-gray-400 text-sm">Total Score</p>
-            <p className="text-3xl font-bold text-yellow-300">{aggregatedStats.totalScore}</p>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="bg-purple-600/20 p-4 rounded-lg border border-purple-500/30 hover:border-purple-500/60 transition-colors"
-          >
-            <p className="text-gray-400 text-sm">Avg Rating</p>
-            <p className="text-3xl font-bold text-purple-300">{aggregatedStats.averageRating}</p>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.05, rotate: 2 }}
-            className="bg-gradient-to-br from-green-600/20 to-blue-600/20 p-4 rounded-lg border-2 border-green-500/50 hover:border-green-500/100 transition-colors"
-          >
-            <p className="text-gray-400 text-sm">Level</p>
-            <p className={`text-2xl font-bold ${ratingInfo.color}`}>{ratingInfo.level}</p>
-          </motion.div>
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {statItems.map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 + 0.3, duration: 0.5 }}
+              whileHover={{ y: -3, scale: 1.02 }}
+              className="p-4 rounded-xl relative overflow-hidden"
+              style={{
+                background: stat.bg,
+                border: `1px solid ${stat.border}`,
+              }}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-base">{stat.icon}</span>
+                <p className="text-xs font-medium" style={{ color: "#475569" }}>
+                  {stat.label}
+                </p>
+              </div>
+              <p
+                className="text-2xl font-black stat-number"
+                style={{ color: stat.color }}
+              >
+                {stat.isText ? stat.value : stat.value.toLocaleString()}
+              </p>
+            </motion.div>
+          ))}
         </div>
       </div>
     </motion.div>

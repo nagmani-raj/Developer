@@ -1,97 +1,184 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
+
+const NAV_ITEMS = [
+  { name: "Home",      href: "/",          icon: "⚡" },
+  { name: "Dashboard", href: "/dashboard", icon: "📊" },
+  { name: "Developer", href: "/developer", icon: "🐙" },
+];
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const navItems = [
-    { name: "Home", href: "/" },
-    { name: "Dashboard", href: "/dashboard" },
-    { name: "Developer", href: "/developer" },
-  ];
+  const [scrolled, setScrolled] = useState(false);
+  const [activeHref, setActiveHref] = useState("/");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setActiveHref(window.location.pathname);
+    }
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <motion.nav
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="sticky top-0 z-50 border-b border-gray-800/50 bg-gray-950/80 px-4 py-3 shadow-lg shadow-blue-600/10 backdrop-blur-md sm:px-6 sm:py-4"
+      initial={{ y: -80, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="sticky top-0 z-50"
     >
-      <div className="mx-auto w-full max-w-7xl">
-        <div className="flex items-center justify-between gap-3">
-          <motion.div
-            whileHover={{ scale: 1.05, rotate: 2 }}
-            whileTap={{ scale: 0.95 }}
-            className="flex items-center gap-2"
-          >
-            <div className="text-2xl sm:text-3xl">{"\u26A1"}</div>
-            <Link
-              href="/"
-              className="text-xl font-bold text-transparent transition-all bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 hover:from-blue-300 hover:to-purple-300 sm:text-2xl"
+      {/* Nav Container */}
+      <div
+        className="mx-4 sm:mx-6 mt-3 rounded-2xl overflow-hidden"
+        style={{
+          background: scrolled
+            ? "rgba(8, 12, 24, 0.92)"
+            : "rgba(8, 12, 24, 0.75)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+          border: "1px solid rgba(148,163,184,0.1)",
+          boxShadow: scrolled
+            ? "0 4px 30px rgba(0,0,0,0.4), 0 0 0 1px rgba(59,130,246,0.08)"
+            : "0 2px 20px rgba(0,0,0,0.3)",
+          transition: "background 0.3s, box-shadow 0.3s",
+        }}
+      >
+        <div className="px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+          
+          {/* Logo */}
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="flex items-center gap-2.5">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
+              style={{
+                background: "linear-gradient(135deg, #2563eb, #7c3aed)",
+                boxShadow: "0 0 16px rgba(59,130,246,0.4)",
+              }}
             >
-              DevAnalyzer
+              ⚡
+            </div>
+            <Link href="/" className="text-lg font-bold tracking-tight" style={{ fontFamily: "'Inter', sans-serif" }}>
+              <span style={{ color: "#f8fafc" }}>Dev</span>
+              <span className="gradient-text-blue-purple">Analyzer</span>
             </Link>
           </motion.div>
 
-          <div className="hidden items-center gap-8 sm:flex">
-            {navItems.map((item, index) => (
-              <motion.div
-                key={item.name}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Link
-                  href={item.href}
-                  className="group relative rounded-md px-4 py-2 text-lg font-semibold text-gray-300 transition-colors hover:text-white"
+          {/* Desktop Nav */}
+          <div className="hidden sm:flex items-center gap-1">
+            {NAV_ITEMS.map((item, i) => {
+              const isActive = activeHref === item.href;
+              return (
+                <motion.div
+                  key={item.name}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.08 + 0.2 }}
                 >
-                  {item.name}
-                  <span className="absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r from-blue-400 to-purple-400 transition-all duration-300 group-hover:w-full" />
-                </Link>
-              </motion.div>
-            ))}
+                  <Link
+                    href={item.href}
+                    onClick={() => setActiveHref(item.href)}
+                    className="relative px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-1.5 transition-all duration-200"
+                    style={{
+                      color: isActive ? "#fff" : "rgba(148,163,184,0.85)",
+                      background: isActive
+                        ? "rgba(59,130,246,0.15)"
+                        : "transparent",
+                    }}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="nav-active"
+                        className="absolute inset-0 rounded-xl"
+                        style={{
+                          background: "rgba(59,130,246,0.12)",
+                          border: "1px solid rgba(59,130,246,0.25)",
+                        }}
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10">{item.name}</span>
+                    {isActive && (
+                      <span
+                        className="relative z-10 w-1.5 h-1.5 rounded-full"
+                        style={{ background: "#3b82f6" }}
+                      />
+                    )}
+                  </Link>
+                </motion.div>
+              );
+            })}
           </div>
 
+
+
+          {/* Mobile hamburger */}
           <button
             type="button"
-            onClick={() => setIsMenuOpen((prev) => !prev)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-700 text-gray-200 transition-colors hover:border-blue-500 hover:text-white sm:hidden"
+            onClick={() => setIsMenuOpen((p) => !p)}
+            className="sm:hidden w-9 h-9 flex flex-col items-center justify-center gap-1.5 rounded-lg"
+            style={{ border: "1px solid rgba(148,163,184,0.12)" }}
             aria-label="Toggle menu"
-            aria-expanded={isMenuOpen}
           >
-            <span className="sr-only">Open menu</span>
-            <div className="flex flex-col gap-1.5">
-              <span className="h-0.5 w-5 bg-current" />
-              <span className="h-0.5 w-5 bg-current" />
-              <span className="h-0.5 w-5 bg-current" />
-            </div>
+            <motion.span
+              animate={isMenuOpen ? { rotate: 45, y: 6 } : { rotate: 0, y: 0 }}
+              className="block w-5 h-0.5 origin-center"
+              style={{ background: "#94a3b8" }}
+            />
+            <motion.span
+              animate={isMenuOpen ? { opacity: 0, scaleX: 0 } : { opacity: 1, scaleX: 1 }}
+              className="block w-5 h-0.5"
+              style={{ background: "#94a3b8" }}
+            />
+            <motion.span
+              animate={isMenuOpen ? { rotate: -45, y: -6 } : { rotate: 0, y: 0 }}
+              className="block w-5 h-0.5 origin-center"
+              style={{ background: "#94a3b8" }}
+            />
           </button>
         </div>
 
-        {isMenuOpen ? (
-          <div className="mt-3 grid gap-1 rounded-lg border border-gray-800 bg-gray-900/70 p-2 sm:hidden">
-            {navItems.map((item, index) => (
-              <motion.div
-                key={item.name}
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Link
-                  href={item.href}
-                  onClick={() => setIsMenuOpen(false)}
-                  className="block rounded-md px-3 py-2 text-sm font-semibold text-gray-200 transition-colors hover:bg-gray-800 hover:text-white"
-                >
-                  {item.name}
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        ) : null}
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              className="overflow-hidden sm:hidden"
+              style={{ borderTop: "1px solid rgba(148,163,184,0.08)" }}
+            >
+              <div className="px-3 py-3 space-y-1">
+                {NAV_ITEMS.map((item, i) => (
+                  <motion.div
+                    key={item.name}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                  >
+                    <Link
+                      href={item.href}
+                      onClick={() => { setIsMenuOpen(false); setActiveHref(item.href); }}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium"
+                      style={{
+                        color: activeHref === item.href ? "#fff" : "#94a3b8",
+                        background: activeHref === item.href
+                          ? "rgba(59,130,246,0.12)"
+                          : "transparent",
+                      }}
+                    >
+                      <span>{item.icon}</span>
+                      {item.name}
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.nav>
   );

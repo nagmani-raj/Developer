@@ -2,6 +2,10 @@ const express = require("express");
 const router = express.Router();
 const { languagesData } = require("../data/mockData");
 
+function hasMeaningfulLanguageData(rows) {
+  return Array.isArray(rows) && rows.some((item) => Number(item?.problems) > 0);
+}
+
 // Get all languages used (optionally aggregated from live platforms)
 router.get("/", async (req, res) => {
   const { leetcode, geeksforgeeks } = req.query;
@@ -12,6 +16,15 @@ router.get("/", async (req, res) => {
       const { getCombinedAnalytics } = require("../services/analytics");
       const analytics = await getCombinedAnalytics({ leetcode, geeksforgeeks });
       const langs = Array.isArray(analytics.languages) ? analytics.languages : [];
+
+      if (!hasMeaningfulLanguageData(langs)) {
+        return res.json({
+          success: true,
+          data: languagesData,
+          count: languagesData.length,
+          fallback: "mockData",
+        });
+      }
 
       return res.json({
         success: true,

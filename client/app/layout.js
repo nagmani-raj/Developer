@@ -1,6 +1,7 @@
 export const metadata = {
-  title: "Dev Analyzer",
-  description: "Unified Coding Profile Analyzer",
+  title: "DevAnalyzer — Unified Coding Profile Analyzer",
+  description:
+    "Aggregate LeetCode, GeeksforGeeks, Codeforces & GitHub stats in one beautiful dashboard.",
 };
 
 import "./globals.css";
@@ -9,27 +10,46 @@ import Footer from "@/components/layout/Footer";
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
-      <body
-        suppressHydrationWarning
-        className="bg-gray-950 text-white min-h-screen relative overflow-x-hidden flex flex-col"
-      >
-        {/* Animated Background */}
-        <div className="fixed inset-0 -z-10">
-          {/* Gradient Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-blue-900/10 to-gray-950" />
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
+      <body suppressHydrationWarning className="min-h-screen relative overflow-x-hidden flex flex-col">
+        
+        {/* ── Animated Background Canvas ── */}
+        <div className="fixed inset-0 -z-10 overflow-hidden">
+          {/* Deep base */}
+          <div className="absolute inset-0" style={{ background: "var(--bg-base)" }} />
           
-          {/* Animated Blobs */}
-          <div className="absolute top-20 left-10 w-96 h-96 bg-blue-600/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-0" />
-          <div className="absolute top-40 right-10 w-72 h-72 bg-purple-600/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000" />
-          <div className="absolute bottom-20 left-1/3 w-80 h-80 bg-pink-600/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000" />
-          
-          {/* Grid Pattern */}
-          <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+          {/* Primary gradient overlay */}
+          <div className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(ellipse 80% 50% at 20% -10%, rgba(59,130,246,0.12) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 110%, rgba(139,92,246,0.1) 0%, transparent 55%)",
+            }}
+          />
+
+          {/* Blobs */}
+          <div
+            className="absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full animate-blob animation-delay-0"
+            style={{ background: "rgba(59,130,246,0.07)", filter: "blur(80px)" }}
+          />
+          <div
+            className="absolute top-1/2 -right-40 w-[500px] h-[500px] rounded-full animate-blob animation-delay-2000"
+            style={{ background: "rgba(139,92,246,0.07)", filter: "blur(80px)" }}
+          />
+          <div
+            className="absolute -bottom-20 left-1/3 w-[450px] h-[450px] rounded-full animate-blob animation-delay-4000"
+            style={{ background: "rgba(6,182,212,0.06)", filter: "blur(80px)" }}
+          />
+
+          {/* Grid */}
+          <div className="absolute inset-0 bg-grid-pattern" />
         </div>
 
         <Navbar />
-        <main className="flex-1 w-full px-6 pt-8 pb-5 max-w-7xl mx-auto relative z-10">
+        <main className="flex-1 w-full px-4 sm:px-6 pt-6 pb-8 max-w-7xl mx-auto relative z-10">
           {children}
         </main>
         <Footer />
@@ -37,5 +57,3 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
-
-

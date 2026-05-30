@@ -1,236 +1,321 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { getLivePlatformsDebug } from "@/lib/api";
 
+const PLATFORM_CONFIG = {
+  codeforces: {
+    label: "Codeforces",
+    key: "CODEFORCES_HANDLE",
+    placeholder: "e.g. tourist",
+    icon: "/codeforces_logo.png",
+    emoji: "🔵",
+    accentColor: "#3b82f6",
+    focusRing: "rgba(59,130,246,0.4)",
+    badgeBg: "rgba(59,130,246,0.12)",
+    badgeBorder: "rgba(59,130,246,0.3)",
+    inputFocus: "rgba(59,130,246,0.6)",
+  },
+  leetcode: {
+    label: "LeetCode",
+    key: "LEETCODE_USERNAME",
+    placeholder: "e.g. john_doe",
+    icon: "/LeetCode_logo.png",
+    emoji: "🟠",
+    accentColor: "#f97316",
+    focusRing: "rgba(249,115,22,0.4)",
+    badgeBg: "rgba(249,115,22,0.12)",
+    badgeBorder: "rgba(249,115,22,0.3)",
+    inputFocus: "rgba(249,115,22,0.6)",
+  },
+  geeksforgeeks: {
+    label: "GeeksforGeeks",
+    key: "GEEKSFORGEEKS_USERNAME",
+    placeholder: "e.g. rajesh_kumar",
+    icon: "/GeeksForGeeks_logo.png",
+    emoji: "🟢",
+    accentColor: "#10b981",
+    focusRing: "rgba(16,185,129,0.4)",
+    badgeBg: "rgba(16,185,129,0.12)",
+    badgeBorder: "rgba(16,185,129,0.3)",
+    inputFocus: "rgba(16,185,129,0.6)",
+  },
+};
+
 export default function PlatformSettings({ onLiveData, onRefresh }) {
-  const [codeforces, setCodeforces] = useState("");
-  const [leetcode, setLeetCode] = useState("");
-  const [geeksforgeeks, setGeeksforGeeks] = useState("");
+  const [values, setValues] = useState({ codeforces: "", leetcode: "", geeksforgeeks: "" });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
   useEffect(() => {
     try {
-      const cf = localStorage.getItem("CODEFORCES_HANDLE") || "";
-      const lc = localStorage.getItem("LEETCODE_USERNAME") || "";
-      const gfg = localStorage.getItem("GEEKSFORGEEKS_USERNAME") || "";
-      setCodeforces(cf);
-      setLeetCode(lc);
-      setGeeksforGeeks(gfg);
+      setValues({
+        codeforces: localStorage.getItem("CODEFORCES_HANDLE") || "",
+        leetcode: localStorage.getItem("LEETCODE_USERNAME") || "",
+        geeksforgeeks: localStorage.getItem("GEEKSFORGEEKS_USERNAME") || "",
+      });
     } catch (e) {}
   }, []);
 
-  const fetchLive = async (opts) => {
-    setLoading(true);
-    try {
-      const liveResult = await getLivePlatformsDebug(opts);
-      const data = liveResult.normalized || {};
-      setResult(liveResult);
-
-      if (onLiveData) {
-        onLiveData({
-          ...data,
-          _statuses: liveResult.statuses || {},
-        });
-      }
-    } catch (e) {
-      setResult({ error: e.message });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleChange = (key, val) =>
+    setValues((prev) => ({ ...prev, [key]: val }));
 
   const handleSaveAndFetch = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
-
-    const normalizedCodeforces = String(codeforces || "").trim();
-    const normalizedLeetcode = String(leetcode || "").trim();
-    const normalizedGeeksforGeeks = String(geeksforgeeks || "").trim();
-
-    setCodeforces(normalizedCodeforces);
-    setLeetCode(normalizedLeetcode);
-    setGeeksforGeeks(normalizedGeeksforGeeks);
-
+    const normalized = Object.fromEntries(
+      Object.entries(values).map(([k, v]) => [k, String(v || "").trim()])
+    );
+    setValues(normalized);
     try {
-      localStorage.setItem("CODEFORCES_HANDLE", normalizedCodeforces);
-      localStorage.setItem("LEETCODE_USERNAME", normalizedLeetcode);
-      localStorage.setItem("GEEKSFORGEEKS_USERNAME", normalizedGeeksforGeeks);
-    } catch (err) {}
+      Object.entries(PLATFORM_CONFIG).forEach(([key, cfg]) => {
+        localStorage.setItem(cfg.key, normalized[key]);
+      });
+    } catch {}
 
-    await fetchLive({
-      codeforces: normalizedCodeforces || undefined,
-      leetcode: normalizedLeetcode || undefined,
-      geeksforgeeks: normalizedGeeksforGeeks || undefined,
-    });
-
-    if (typeof onRefresh === "function") {
-      onRefresh();
+    setLoading(true);
+    try {
+      const liveResult = await getLivePlatformsDebug({
+        codeforces: normalized.codeforces || undefined,
+        leetcode: normalized.leetcode || undefined,
+        geeksforgeeks: normalized.geeksforgeeks || undefined,
+      });
+      const data = liveResult.normalized || {};
+      setResult(liveResult);
+      if (onLiveData) {
+        onLiveData({ ...data, _statuses: liveResult.statuses || {} });
+      }
+    } catch (err) {
+      setResult({ error: err.message });
+    } finally {
+      setLoading(false);
     }
+
+    if (typeof onRefresh === "function") onRefresh();
   };
 
-  const platformConfigs = [
-    {
-      title: "Codeforces",
-      value: codeforces,
-      url: codeforces ? `https://codeforces.com/profile/${codeforces}` : null,
-      buttonClass:
-        "bg-blue-600/20 p-6 rounded-xl border-2 border-blue-600/50 transition-colors",
-    },
-    {
-      title: "LeetCode",
-      value: leetcode,
-      url: leetcode ? `https://leetcode.com/u/${leetcode}/` : null,
-      buttonClass:
-        "bg-yellow-600/20 p-6 rounded-xl border-2 border-yellow-500/50 transition-colors",
-    },
-    {
-      title: "GeeksforGeeks",
-      value: geeksforgeeks,
-      url: geeksforgeeks
-        ? `https://www.geeksforgeeks.org/profile/${geeksforgeeks}?tab=activity`
-        : null,
-      buttonClass:
-        "bg-green-600/20 p-6 rounded-xl border-2 border-green-500/50 transition-colors",
-    },
-  ];
-
   return (
-    <div className="mb-16" suppressHydrationWarning>
-
-      {/* Top Gradient Banner */}
-      <div
-        suppressHydrationWarning
-        role="button"
-        tabIndex={0}
-        onClick={handleSaveAndFetch}
-        onKeyDown={(e) =>
-          (e.key === "Enter" || e.key === " ") && handleSaveAndFetch()
-        }
-        className="cursor-pointer relative p-8 rounded-3xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 shadow-2xl hover:scale-[1.02] transition-all duration-300 mb-10 overflow-hidden"
-      >
-        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm rounded-3xl"></div>
-        <div className="relative z-10">
-          <h3 className="text-4xl font-bold text-white tracking-wide">
-            🚀 Connect Your Coding Platforms
-          </h3>
-          <p className="text-gray-200 mt-3 text-sm">
-            Save handles & fetch live competitive programming stats instantly
+    <div suppressHydrationWarning>
+      {/* ── Section Header ── */}
+      <div className="section-header mb-6">
+        <div
+          className="section-header-icon"
+          style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.25)" }}
+        >
+          🔗
+        </div>
+        <div>
+          <h2 className="section-header-title gradient-text-blue-purple">
+            Connect Platforms
+          </h2>
+          <p className="text-xs mt-0.5" style={{ color: "#475569" }}>
+            Save your handles to fetch live competitive programming stats
           </p>
         </div>
       </div>
 
-      {/* Form Card */}
+      {/* ── Form Card ── */}
       <form
         suppressHydrationWarning
         onSubmit={handleSaveAndFetch}
-        className="bg-gradient-to-br from-gray-900 to-gray-800 border border-gray-700 p-8 rounded-3xl shadow-2xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+        className="glass-card p-6 sm:p-8"
       >
-        {/* Codeforces */}
-        <div>
-          <label className="text-sm text-gray-400 font-medium">
-            Codeforces Handle
-          </label>
-          <input
-            suppressHydrationWarning
-            value={codeforces}
-            onChange={(e) => setCodeforces(e.target.value)}
-            placeholder="e.g. tourist"
-            className="mt-3 w-full p-3 rounded-xl bg-gray-800 border border-gray-600 text-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+          {Object.entries(PLATFORM_CONFIG).map(([key, cfg]) => (
+            <div key={key}>
+              {/* Platform label with icon */}
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className="text-sm">{cfg.emoji}</span>
+                <label
+                  className="text-sm font-semibold"
+                  style={{ color: cfg.accentColor }}
+                >
+                  {cfg.label}
+                </label>
+                {values[key] && (
+                  <span
+                    className="ml-auto text-xs px-2 py-0.5 rounded-full font-medium"
+                    style={{
+                      background: cfg.badgeBg,
+                      border: `1px solid ${cfg.badgeBorder}`,
+                      color: cfg.accentColor,
+                    }}
+                  >
+                    Connected
+                  </span>
+                )}
+              </div>
+
+              {/* Input */}
+              <div className="relative">
+                <input
+                  suppressHydrationWarning
+                  value={values[key]}
+                  onChange={(e) => handleChange(key, e.target.value)}
+                  placeholder={cfg.placeholder}
+                  className="input-premium pr-10"
+                  style={{
+                    "--focus-color": cfg.inputFocus,
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = cfg.inputFocus;
+                    e.currentTarget.style.boxShadow = `0 0 0 3px ${cfg.focusRing}30`;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "";
+                    e.currentTarget.style.boxShadow = "";
+                  }}
+                />
+                {values[key] && (
+                  <button
+                    type="button"
+                    onClick={() => handleChange(key, "")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center text-xs"
+                    style={{ background: "rgba(148,163,184,0.15)", color: "#64748b" }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
 
-        {/* LeetCode */}
-        <div>
-          <label className="text-sm text-gray-400 font-medium">
-            LeetCode Username
-          </label>
-          <input
-            suppressHydrationWarning
-            value={leetcode}
-            onChange={(e) => setLeetCode(e.target.value)}
-            placeholder="e.g. leetcode_user"
-            className="mt-3 w-full p-3 rounded-xl bg-gray-800 border border-gray-600 text-white focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition-all"
-          />
-        </div>
-
-        {/* GFG */}
-        <div>
-          <label className="text-sm text-gray-400 font-medium">
-            GeeksforGeeks Username
-          </label>
-          <input
-            suppressHydrationWarning
-            value={geeksforgeeks}
-            onChange={(e) => setGeeksforGeeks(e.target.value)}
-            placeholder="e.g. rajesh123"
-            className="mt-3 w-full p-3 rounded-xl bg-gray-800 border border-gray-600 text-white focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-          />
-        </div>
-
-        {/* Status + Button */}
-        <div className="lg:col-span-3 flex flex-col gap-6 mt-6">
-
-          <div className="self-start">
+        {/* Status + Submit row */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4"
+          style={{ borderTop: "1px solid rgba(148,163,184,0.08)" }}
+        >
+          {/* Status messages */}
+          <AnimatePresence mode="wait">
             {loading && (
-              <p className="text-blue-400 text-sm animate-pulse">
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -8 }}
+                className="flex items-center gap-2 text-sm"
+                style={{ color: "#60a5fa" }}
+              >
+                <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
                 Fetching live data...
-              </p>
+              </motion.div>
             )}
             {!loading && result && !result.error && (
-              <p className="text-green-400 text-sm">
-                ✔ Live data synced successfully!
-              </p>
+              <motion.div
+                key="success"
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -8 }}
+                className="flex items-center gap-2 text-sm"
+                style={{ color: "#34d399" }}
+              >
+                <span className="text-base">✅</span>
+                Live data synced successfully!
+              </motion.div>
             )}
             {!loading && result && result.error && (
-              <p className="text-red-400 text-sm">{result.error}</p>
+              <motion.div
+                key="error"
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -8 }}
+                className="flex items-center gap-2 text-sm"
+                style={{ color: "#f87171" }}
+              >
+                <span className="text-base">❌</span>
+                {result.error}
+              </motion.div>
             )}
-          </div>
+            {!loading && !result && <div className="text-sm" style={{ color: "#334155" }}>Enter your handles and click Update.</div>}
+          </AnimatePresence>
 
-          <button
+          {/* Submit button */}
+          <motion.button
             suppressHydrationWarning
             type="submit"
             disabled={loading}
-            className={`self-center bg-red-600/20 p-6 rounded-xl border-2 border-red-500/50 transition-colors${
-              loading
-                ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                : "bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 hover:from-cyan-300 hover:via-blue-400 hover:to-indigo-500 hover:shadow-cyan-500/35 hover:shadow-xl"
-            }`}
+            whileHover={{ scale: loading ? 1 : 1.03 }}
+            whileTap={{ scale: loading ? 1 : 0.97 }}
+            className="btn-primary whitespace-nowrap"
+            style={{ minWidth: "140px" }}
           >
-            {loading ? "Updating..." : "Update Data"}
-          </button>
+            {loading ? (
+              <>
+                <span
+                  className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                />
+                Updating...
+              </>
+            ) : (
+              <>
+                <span>⟳</span>
+                Update Data
+              </>
+            )}
+          </motion.button>
         </div>
       </form>
 
-      {/* Platform Cards */}
-      <div className="mt-12 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-        {platformConfigs.map((platform) => (
-          <div
-            key={platform.title}
-            className="relative bg-gradient-to-br from-gray-900 to-gray-800 border border-gray-700 rounded-3xl p-8 shadow-xl hover:shadow-2xl hover:-translate-y-2 transition-all duration-300"
-          >
-            <h4 className="text-2xl font-bold text-white">
-              {platform.title}
-            </h4>
-            <p className="text-gray-400 mt-3">
-              {platform.value || "Not set"}
-            </p>
+      {/* ── Platform profile links ── */}
+      <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {Object.entries(PLATFORM_CONFIG).map(([key, cfg]) => {
+          const handle = values[key];
+          const profileUrl =
+            key === "codeforces"
+              ? handle ? `https://codeforces.com/profile/${handle}` : null
+              : key === "leetcode"
+              ? handle ? `https://leetcode.com/u/${handle}/` : null
+              : handle ? `https://www.geeksforgeeks.org/user/${handle}/` : null;
 
-            <a
-              href={platform.url || undefined}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`mt-6 inline-block w-full text-center py-3 rounded-xl font-semibold text-white transition-all duration-300 ${
-                platform.url
-                  ? `${platform.buttonClass} shadow-lg hover:scale-[1.03]`
-                  : "bg-gray-700 text-gray-400 cursor-not-allowed"
-              }`}
-              {...(platform.url ? {} : { "aria-disabled": "true" })}
+          return (
+            <motion.div
+              key={key}
+              whileHover={{ y: -3 }}
+              className="glass-card p-4 flex items-center gap-3"
+              style={{
+                borderColor: handle ? `${cfg.accentColor}25` : "rgba(148,163,184,0.08)",
+              }}
             >
-              {platform.url ? "View Profile" : "Save handle to enable"}
-            </a>
-          </div>
-        ))}
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                style={{ background: handle ? cfg.badgeBg : "rgba(15,23,42,0.5)" }}
+              >
+                {cfg.emoji}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold" style={{ color: handle ? cfg.accentColor : "#334155" }}>
+                  {cfg.label}
+                </p>
+                <p className="text-xs truncate mt-0.5" style={{ color: "#475569" }}>
+                  {handle || "Not connected"}
+                </p>
+              </div>
+              {profileUrl ? (
+                <a
+                  href={profileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all hover:opacity-80"
+                  style={{
+                    background: cfg.badgeBg,
+                    border: `1px solid ${cfg.badgeBorder}`,
+                    color: cfg.accentColor,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  View ↗
+                </a>
+              ) : (
+                <span
+                  className="text-xs px-2.5 py-1.5 rounded-lg font-medium"
+                  style={{ background: "rgba(15,23,42,0.5)", color: "#334155" }}
+                >
+                  —
+                </span>
+              )}
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );

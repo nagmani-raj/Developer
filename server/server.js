@@ -8,6 +8,7 @@ const statsRoutes = require("./routes/stats");
 const progressRoutes = require("./routes/progress");
 const languageRoutes = require("./routes/languages");
 const algorithmRoutes = require("./routes/algorithms");
+const aiRoutes = require("./routes/ai");
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use("/api/stats", statsRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/languages", languageRoutes);
 app.use("/api/algorithms", algorithmRoutes);
+app.use("/api/ai", aiRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {

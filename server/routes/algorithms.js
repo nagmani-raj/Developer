@@ -2,6 +2,10 @@ const express = require("express");
 const router = express.Router();
 const { algorithmData } = require("../data/mockData");
 
+function hasMeaningfulAlgorithmData(rows) {
+  return Array.isArray(rows) && rows.some((item) => Number(item?.count) > 0);
+}
+
 // Get all algorithm categories (optionally aggregated from live platforms)
 router.get("/", async (req, res) => {
   const { leetcode, geeksforgeeks } = req.query;
@@ -11,6 +15,15 @@ router.get("/", async (req, res) => {
       const { getCombinedAnalytics } = require("../services/analytics");
       const analytics = await getCombinedAnalytics({ leetcode, geeksforgeeks });
       const algs = Array.isArray(analytics.algorithms) ? analytics.algorithms : [];
+
+      if (!hasMeaningfulAlgorithmData(algs)) {
+        return res.json({
+          success: true,
+          data: algorithmData,
+          count: algorithmData.length,
+          fallback: "mockData",
+        });
+      }
 
       return res.json({
         success: true,

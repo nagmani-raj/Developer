@@ -316,3 +316,13 @@ export async function getAlgorithms({ leetcode, geeksforgeeks } = {}) {
     return [];
   }
 }
+
+export async function getAiWeeklyPlan({ leetcode, geeksforgeeks, timezone } = {}) {
+  try {
+    const query = toQueryString({ leetcode, geeksforgeeks, timezone });
+    return await fetchApi(`/api/ai/weekly-plan${query}`, { retries: 2, timeoutMs: 90000 });
+  } catch (error) {
+    logApiError("getAiWeeklyPlan error", error);
+    return null;
+  }
+}

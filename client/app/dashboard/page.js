@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
 import ProfileCard from "@/components/dashboard/ProfileCard";
 import ScoreCard from "@/components/dashboard/ScoreCard";
 import PlatformCard from "@/components/dashboard/PlatformCard";
@@ -9,10 +10,38 @@ import LanguageCard from "@/components/dashboard/LanguageCard";
 import AlgorithmCard from "@/components/dashboard/AlgorithmCard";
 import { getLivePlatformsDebug, getPlatforms } from "@/lib/api";
 
+function SectionHeader({ icon, title, subtitle, gradient }) {
+  return (
+    <div className="section-header mb-6">
+      <div
+        className="section-header-icon"
+        style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.2)" }}
+      >
+        {icon}
+      </div>
+      <div>
+        <h2
+          className="section-header-title"
+          style={{
+            background: gradient || "linear-gradient(135deg,#60a5fa,#a78bfa)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+          }}
+        >
+          {title}
+        </h2>
+        {subtitle && (
+          <p className="text-xs mt-0.5" style={{ color: "#475569" }}>{subtitle}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [platforms, setPlatforms] = useState([]);
   const [loading, setLoading] = useState(true);
-  // simple counter to force the analytics cards to re-fetch when handles change
   const [analyticsKey, setAnalyticsKey] = useState(0);
 
   const applyLiveData = (currentPlatforms, live) => {
@@ -20,10 +49,7 @@ export default function Dashboard() {
     const statuses = live._statuses || {};
     const isMissingIdentityError = (status) => {
       const msg = String(status?.error || "").toLowerCase();
-      return (
-        msg.includes("username not provided") ||
-        msg.includes("handle not provided")
-      );
+      return msg.includes("username not provided") || msg.includes("handle not provided");
     };
 
     return currentPlatforms.map((p) => {
@@ -32,69 +58,40 @@ export default function Dashboard() {
 
       if (name === "leetcode" && live.leetcode) {
         const lc = live.leetcode;
-        updated.easy = lc.easy ?? p.easy;
-        updated.medium = lc.medium ?? p.medium;
-        updated.hard = lc.hard ?? p.hard;
-        updated.total = lc.totalSolved ?? p.total;
-        updated.rating = lc.contestRating ?? p.rating;
-        updated.rank = lc.contestGlobalRanking ?? p.rank;
+        updated.easy   = lc.easy          ?? p.easy;
+        updated.medium = lc.medium         ?? p.medium;
+        updated.hard   = lc.hard           ?? p.hard;
+        updated.total  = lc.totalSolved    ?? p.total;
+        updated.rating = lc.contestRating  ?? p.rating;
+        updated.rank   = lc.contestGlobalRanking ?? p.rank;
       }
-      if (
-        name === "leetcode" &&
-        statuses.leetcode &&
-        !statuses.leetcode.ok &&
-        !isMissingIdentityError(statuses.leetcode)
-      ) {
-        // Keep existing values on transient API failures.
-      }
-
       if (name === "codeforces" && live.codeforces) {
         const cf = live.codeforces;
-        updated.easy = null;
+        updated.easy   = null;
         updated.medium = null;
-        updated.hard = null;
-        updated.total = cf.totalSolved ?? p.total;
-        updated.rating = cf.rating ?? p.rating;
-        updated.rank = cf.rank ?? p.rank;
+        updated.hard   = null;
+        updated.total  = cf.totalSolved ?? p.total;
+        updated.rating = cf.rating      ?? p.rating;
+        updated.rank   = cf.rank        ?? p.rank;
       }
-      if (
-        name === "codeforces" &&
-        statuses.codeforces &&
-        !statuses.codeforces.ok &&
-        !isMissingIdentityError(statuses.codeforces)
-      ) {
-        // Keep existing values on transient API failures.
-      }
-
       if (name === "geeksforgeeks" && live.geeksforgeeks) {
         const gfg = live.geeksforgeeks;
-        updated.easy = gfg.easy ?? p.easy;
-        updated.medium = gfg.medium ?? p.medium;
-        updated.hard = gfg.hard ?? p.hard;
-        updated.total = gfg.totalSolved ?? gfg.total ?? gfg.score ?? p.total;
+        updated.easy   = gfg.easy           ?? p.easy;
+        updated.medium = gfg.medium          ?? p.medium;
+        updated.hard   = gfg.hard            ?? p.hard;
+        updated.total  = gfg.totalSolved ?? gfg.total ?? gfg.score ?? p.total;
         updated.rating = gfg.codingScore ?? gfg.score ?? p.rating;
-        updated.rank = gfg.rank ?? p.rank;
+        updated.rank   = gfg.rank            ?? p.rank;
       }
-      if (
-        name === "geeksforgeeks" &&
-        statuses.geeksforgeeks &&
-        !statuses.geeksforgeeks.ok &&
-        !isMissingIdentityError(statuses.geeksforgeeks)
-      ) {
-        // Keep existing values on transient API failures.
-      }
-
       return updated;
     });
   };
 
-  const handleLiveData = (live) => {
+  const handleLiveData = (live) =>
     setPlatforms((prev) => applyLiveData(prev, live));
-  };
 
-  const handleRefreshAnalytics = () => {
+  const handleRefreshAnalytics = () =>
     setAnalyticsKey((k) => k + 1);
-  };
 
   useEffect(() => {
     const loadPlatforms = async () => {
@@ -102,9 +99,8 @@ export default function Dashboard() {
       try {
         const base = await getPlatforms();
         let platformsArr = Array.isArray(base) ? base : [];
-
-        const cf = typeof window !== "undefined" ? localStorage.getItem("CODEFORCES_HANDLE") : null;
-        const lc = typeof window !== "undefined" ? localStorage.getItem("LEETCODE_USERNAME") : null;
+        const cf  = typeof window !== "undefined" ? localStorage.getItem("CODEFORCES_HANDLE") : null;
+        const lc  = typeof window !== "undefined" ? localStorage.getItem("LEETCODE_USERNAME") : null;
         const gfg = typeof window !== "undefined" ? localStorage.getItem("GEEKSFORGEEKS_USERNAME") : null;
 
         const liveResult = await getLivePlatformsDebug({
@@ -112,11 +108,7 @@ export default function Dashboard() {
           leetcode: lc || undefined,
           geeksforgeeks: gfg || undefined,
         });
-        const live = {
-          ...(liveResult.normalized || {}),
-          _statuses: liveResult.statuses || {},
-        };
-
+        const live = { ...(liveResult.normalized || {}), _statuses: liveResult.statuses || {} };
         platformsArr = applyLiveData(platformsArr, live);
         setPlatforms(platformsArr);
       } catch (error) {
@@ -126,7 +118,6 @@ export default function Dashboard() {
         setLoading(false);
       }
     };
-
     loadPlatforms();
   }, []);
 
@@ -136,15 +127,13 @@ export default function Dashboard() {
       (acc, platform) => {
         const name = String(platform?.name || "").toLowerCase();
         if (!tracked.has(name)) return acc;
-
-        acc.easy += Number(platform?.easy) || 0;
+        acc.easy   += Number(platform?.easy)   || 0;
         acc.medium += Number(platform?.medium) || 0;
-        acc.hard += Number(platform?.hard) || 0;
+        acc.hard   += Number(platform?.hard)   || 0;
         return acc;
       },
       { easy: 0, medium: 0, hard: 0 }
     );
-
     return {
       easy: totals.easy,
       medium: totals.medium,
@@ -154,45 +143,95 @@ export default function Dashboard() {
   }, [platforms]);
 
   return (
-    <div className="space-y-12 pb-12">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className="space-y-10 pb-12"
+    >
+      {/* ── Profile ── */}
       <section>
         <ProfileCard refreshKey={analyticsKey} />
       </section>
 
+      {/* ── Divider ── */}
+      <div className="section-divider" />
+
+      {/* ── Connect Platforms ── */}
       <section>
         <PlatformSettings onLiveData={handleLiveData} onRefresh={handleRefreshAnalytics} />
       </section>
 
-      <section>
-        <h2 className="text-4xl font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">
-          Coding Platforms
-        </h2>
+      {/* ── Divider ── */}
+      <div className="section-divider" />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {loading ? (
-            <p className="text-gray-400 col-span-full">Loading platforms...</p>
-          ) : platforms.length > 0 ? (
-            platforms.map((platform) => <PlatformCard key={platform.id} platform={platform} />)
-          ) : (
-            <p className="text-gray-400 col-span-full">No platforms available</p>
-          )}
+      {/* ── Coding Platforms ── */}
+      <section>
+        <SectionHeader
+          icon="🏅"
+          title="Coding Platforms"
+          subtitle="Your live competitive programming statistics"
+          gradient="linear-gradient(135deg,#60a5fa,#a78bfa)"
+        />
+
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-52 rounded-2xl shimmer" />
+            ))}
+          </div>
+        ) : platforms.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {platforms.map((platform) => (
+              <PlatformCard key={platform.id} platform={platform} />
+            ))}
+          </div>
+        ) : (
+          <div
+            className="glass-card p-10 text-center"
+            style={{ borderStyle: "dashed" }}
+          >
+            <span className="text-4xl mb-4 block">📡</span>
+            <p className="font-semibold" style={{ color: "#475569" }}>No platforms found</p>
+            <p className="text-sm mt-1" style={{ color: "#334155" }}>Connect your handles above to get started</p>
+          </div>
+        )}
+      </section>
+
+      {/* ── Divider ── */}
+      <div className="section-divider" />
+
+      {/* ── Analytics + Deep Insights — ek row mein ── */}
+      <section>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+
+          {/* Left — Analytics / ScoreCard */}
+          <div>
+            <SectionHeader
+              icon="📊"
+              title="Analytics"
+              subtitle="Aggregated problem-solving breakdown"
+              gradient="linear-gradient(135deg,#f472b6,#a78bfa)"
+            />
+            <ScoreCard aggregatedStats={aggregatedStats} loading={loading} />
+          </div>
+
+          {/* Right — Deep Insights */}
+          <div>
+            <SectionHeader
+              icon="🔬"
+              title="Deep Insights"
+              subtitle="Language usage and algorithm category breakdown"
+              gradient="linear-gradient(135deg,#34d399,#22d3ee)"
+            />
+            <div className="grid grid-cols-1 gap-5">
+              <LanguageCard refreshKey={analyticsKey} />
+              <AlgorithmCard refreshKey={analyticsKey} />
+            </div>
+          </div>
+
         </div>
       </section>
-
-      <section>
-        <h2 className="text-4xl font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-red-400">
-          Analytics Dashboard
-        </h2>
-
-        <div className="space-y-8">
-          <ScoreCard aggregatedStats={aggregatedStats} loading={loading} />
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <LanguageCard refreshKey={analyticsKey} />
-        <AlgorithmCard refreshKey={analyticsKey} />
-      </section>
-    </div>
+    </motion.div>
   );
 }
