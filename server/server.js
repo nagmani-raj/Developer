@@ -12,29 +12,36 @@ const aiRoutes = require("./routes/ai");
 
 const app = express();
 
-// Middleware - flexible CORS for local development
-const corsOrigin = process.env.CORS_ORIGIN || "https://developer-analyzer.vercel.app";
-const allowedOrigins = corsOrigin.split(",").map((s) => s.trim()).filter(Boolean);
+// Middleware - CORS (always allow Vercel + localhost; plus CORS_ORIGIN env)
+const DEFAULT_ORIGINS = [
+  "https://developer-analyzer.vercel.app",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+];
+
+const corsOrigin = process.env.CORS_ORIGIN || "";
+const allowedOrigins = [
+  ...new Set([
+    ...DEFAULT_ORIGINS,
+    ...corsOrigin.split(",").map((s) => s.trim()).filter(Boolean),
+  ]),
+];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // allow requests with no origin (e.g., curl, Postman, server-side)
       if (!origin) return callback(null, true);
 
-      // allow all if wildcard is present
-      if (allowedOrigins.includes("*") || allowedOrigins.length === 0) return callback(null, true);
-
-      // allow if origin is explicitly listed or if running on localhost (dev)
       if (
         allowedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app") ||
         origin.startsWith("http://localhost:") ||
         origin.startsWith("http://127.0.0.1:")
       ) {
         return callback(null, true);
       }
 
-      return callback(new Error("Not allowed by CORS"));
+      return callback(null, false);
     },
   })
 );
